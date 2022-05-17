@@ -1,4 +1,4 @@
-parameters: # defaults for any parameters that aren't specified
+parameters:
   - name: 'services'
     type: object
     default:
@@ -30,7 +30,7 @@ jobs:
               Write-Host ("It is: $(Build.Reason)")
               Write-Host "##vso[task.setvariable variable=pr;isOutput=true]false"
             }
-      - task: UseDotNet@2 
+      - task: UseDotNet@2
         displayName: ".NET Core"
         inputs:
           version: '3.1.x'
