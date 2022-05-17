@@ -1,0 +1,64 @@
+parameters: # defaults for any parameters that aren't specified
+  - name: 'services'
+    type: object
+    default:
+      - Mateusz.Nadobnik.Service1
+      - Mateusz.Nadobnik.Service2
+      - Mateusz.Nadobnik.Service3
+  - name: 'containerRegistry'
+    type: string
+
+jobs:
+  - job: BuildDotNetCore
+    variables:
+      - name: buildConfiguration
+        value: Release
+    displayName: "Continuous Integration"
+    steps:
+      - task: PowerShell@2
+        displayName: "IfPullRequest"
+        name: setpr
+        inputs:
+          targetType: inline
+          pwsh: true
+          script: |
+            if("$(Build.Reason)" -eq 'PullRequest') {
+              Write-Host ("It is: $(Build.Reason)")
+              Write-Host "##vso[task.setvariable variable=pr;isOutput=true]true"
+            }
+            else {
+              Write-Host ("It is: $(Build.Reason)")
+              Write-Host "##vso[task.setvariable variable=pr;isOutput=true]false"
+            }
+      - task: UseDotNet@2 
+        displayName: ".NET Core"
+        inputs:
+          version: '3.1.x'
+          packageType: sdk
+      - ${{ each service in parameters.services }}:
+        - script: |
+            dotnet tool update -g dotnet-format
+            dotnet format --check --verbosity diagnostic
+          workingDirectory: 'services/${{ service }}'
+          displayName: '${{ service }} - Format test'
+        - task: DotNetCoreCLI@2
+          displayName: "${{ service }} - Tests"
+          inputs:
+            command: test
+            projects: 'tests/${{ service }}.Tests/*.csproj'
+            arguments: '--configuration $(buildConfiguration)'
+        - task: DotNetCoreCLI@2
+          displayName: "${{ service }} - .Net Build"
+          inputs:
+            command: build
+            projects: 'services/${{ service }}/${{ service }}.csproj'
+            arguments: '--configuration $(buildConfiguration)' # Update this to match your need
+        - task: Docker@2
+          condition: and(succeeded(),eq(variables['setpr.pr'],'false'))
+          displayName: '${{ service }} - Build & Push'
+          inputs:
+            repository: ${{ service }}
+            tags: $(Build.BuildNumber)
+            command: buildAndPush
+            containerRegistry: ${{ parameters.containerRegistry }}
+            Dockerfile: 'services/${{service}}/dockerfile'
