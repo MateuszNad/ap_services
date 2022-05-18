@@ -9,8 +9,15 @@ stages:
     jobs:
       - template: "pipelines/build.pipeline.yml"
         parameters:
-          services:
-            - Mateusz.Nadobnik.Service1
-            - Mateusz.Nadobnik.Service2
-            - Mateusz.Nadobnik.Service3
+          service: "Mateusz.Nadobnik.Service1"
+          containerRegistry: "container-registry"
+
+      - template: "pipelines/build.pipeline.yml"
+        parameters:
+          service: "Mateusz.Nadobnik.Service2"
+          containerRegistry: "container-registry"
+
+      - template: "pipelines/build.pipeline.yml"
+        parameters:
+          service: "Mateusz.Nadobnik.Service3"
           containerRegistry: "container-registry"

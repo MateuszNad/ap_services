@@ -1,19 +1,15 @@
-parameters:
-  - name: 'services'
-    type: object
-    default:
-      - Mateusz.Nadobnik.Service1
-      - Mateusz.Nadobnik.Service2
-      - Mateusz.Nadobnik.Service3
+parameters: # defaults for any parameters that aren't specified
+  - name: 'service'
+    type: string
   - name: 'containerRegistry'
     type: string
 
 jobs:
-  - job: BuildDotNetCore
+  - job: 
     variables:
       - name: buildConfiguration
         value: Release
-    displayName: "Continuous Integration"
+    displayName: "${{ parameters.service }} - Continuous Integration"
     steps:
       - task: PowerShell@2
         displayName: "IfPullRequest"
@@ -30,35 +26,34 @@ jobs:
               Write-Host ("It is: $(Build.Reason)")
               Write-Host "##vso[task.setvariable variable=pr;isOutput=true]false"
             }
-      - task: UseDotNet@2
+      - task: UseDotNet@2 
         displayName: ".NET Core"
         inputs:
           version: '3.1.x'
           packageType: sdk
-      - ${{ each service in parameters.services }}:
-        - script: |
-            dotnet tool update -g dotnet-format
-            dotnet format --check --verbosity diagnostic
-          workingDirectory: 'services/${{ service }}'
-          displayName: '${{ service }} - Format test'
-        - task: DotNetCoreCLI@2
-          displayName: "${{ service }} - Tests"
-          inputs:
-            command: test
-            projects: 'tests/${{ service }}.Tests/*.csproj'
-            arguments: '--configuration $(buildConfiguration)'
-        - task: DotNetCoreCLI@2
-          displayName: "${{ service }} - .Net Build"
-          inputs:
-            command: build
-            projects: 'services/${{ service }}/${{ service }}.csproj'
-            arguments: '--configuration $(buildConfiguration)' # Update this to match your need
-        - task: Docker@2
-          condition: and(succeeded(),eq(variables['setpr.pr'],'false'))
-          displayName: '${{ service }} - Build & Push'
-          inputs:
-            repository: ${{ service }}
-            tags: $(Build.BuildNumber)
-            command: buildAndPush
-            containerRegistry: ${{ parameters.containerRegistry }}
-            Dockerfile: 'services/${{service}}/dockerfile'
+      - script: |
+          dotnet tool update -g dotnet-format
+          dotnet format --check --verbosity diagnostic
+        workingDirectory: 'services/${{ parameters.service }}'
+        displayName: '${{ parameters.service }} - Format test'
+      - task: DotNetCoreCLI@2
+        displayName: "${{ parameters.service }} - Tests"
+        inputs:
+          command: test
+          projects: 'tests/${{ parameters.service }}.Tests/*.csproj'
+          arguments: '--configuration $(buildConfiguration)'
+      - task: DotNetCoreCLI@2
+        displayName: "${{ parameters.service }} - .Net Build"
+        inputs:
+          command: build
+          projects: 'services/${{ parameters.service }}/${{ parameters.service }}.csproj'
+          arguments: '--configuration $(buildConfiguration)' # Update this to match your need
+      - task: Docker@2
+        condition: and(succeeded(),eq(variables['setpr.pr'],'false'))
+        displayName: '${{ parameters.service }} - Build & Push'
+        inputs:
+          repository: ${{ parameters.service }}
+          tags: $(Build.BuildNumber)
+          command: buildAndPush
+          containerRegistry: ${{ parameters.containerRegistry }}
+          Dockerfile: 'services/${{ parameters.service }}/dockerfile'
